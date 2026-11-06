@@ -104,6 +104,22 @@
 #lf-app .zr-grid { grid-template-columns: repeat(3, 1fr); }
 #lf-app .zr-grid.sm { grid-template-columns: repeat(4, 1fr); }
 
+/* врач */
+#lf-app .zr-doc .lf-ava { background: radial-gradient(circle at 50% 35%, #2c3436, #161a1b); }
+#lf-app .zr-doc .lf-ava i { color: #a9c6cc; }
+#lf-app .zr-opt.t-good { border-color: rgba(143, 169, 133, .5); }
+#lf-app .zr-opt.t-mixed { border-color: rgba(220, 180, 120, .45); }
+#lf-app .zr-opt.t-bad { border-color: rgba(217, 104, 123, .6); }
+#lf-app .zr-opt.chosen { box-shadow: 0 0 0 1px rgba(234, 179, 188, .4), 0 0 18px rgba(217, 104, 123, .15); }
+#lf-app .zr-opt .lf-btn { margin-top: 10px; }
+#lf-app .zr-next { display: flex; gap: 6px; align-items: flex-start; font-size: 13px !important; color: var(--lf-dim) !important; }
+#lf-app .zr-link { padding: 0; border: 0; background: none; color: var(--lf-rose2); text-decoration: underline; font: inherit; cursor: pointer; }
+#lf-app .zr-file { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; }
+#lf-app .zr-file-r { padding: 9px 2px; border-bottom: 1px solid var(--lf-line); }
+#lf-app .zr-file-r small { color: var(--lf-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+#lf-app .zr-file-r p { margin: 3px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--lf-text2); }
+#lf-app .zr-tl-p { font-size: 13.5px; color: var(--lf-text2); line-height: 1.45; margin: 2px 0; }
+
 /* листы */
 #lf-app .zr-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #lf-app .zr-2 .lf-field { margin: 6px 0; }

@@ -4,6 +4,7 @@
 import { extension_prompts } from '../../../../script.js';
 import * as E from './engine.js';
 import * as U from './ui.js';
+import * as D from './doctor.js';
 
 const ID = 'zr';
 let api = null;
@@ -48,9 +49,18 @@ function register() {
     B.register({
         id: ID,
         init(a) { api = a; E.setApi(a); },
-        prompt: (type) => { try { toastEvents(E.tick()); } catch { /* */ } return E.promptNote(type); },
-        chron: () => E.chronHook(),
-        afterPost: (i, j, m) => { toastEvents(E.afterPost(i, j, m)); freshDay(); },
+        prompt: (type) => { try { toastEvents(E.tick()); } catch { /* */ } return [E.promptNote(type), D.promptDoc()].filter(Boolean).join('\n'); },
+        chron: () => {
+            const h = E.chronHook();
+            if (h && D.docs().length) h.input += `\nВрачи истории (поле doctor — их слова и действия): ${D.docs().map(d => `${d.name} (${D.ROLES[d.role]})`).join('; ')}.`;
+            return h;
+        },
+        afterPost: (i, j, m) => {
+            let ev = [];
+            try { ev = D.onBotPost(i, j?.zr); } catch (e) { console.warn('[Зёрнышко] врач', e); }
+            toastEvents([...ev, ...E.afterPost(i, j, m)]);
+            freshDay();
+        },
         personRow: (who) => U.personRow(who),
         renderPerson: (rest) => U.renderKid(rest),
         sceneHtml: () => U.sceneHtml(),
@@ -106,6 +116,7 @@ jQuery(async () => {
     }, 500);
     try {
         const { eventSource, event_types } = SillyTavern.getContext();
+        eventSource.on(event_types.MESSAGE_SENT, (id) => { if (!api) return; D.onUserPost(Number(id)).then(ev => { toastEvents(ev); try { api.updatePrompt(); } catch { /* */ } }).catch(() => { }); });
         eventSource.on(event_types.CHAT_CHANGED, () => setTimeout(() => { if (!api) return; try { toastEvents(E.tick()); freshDay(); } catch (e) { console.warn('[Зёрнышко]', e); } }, 1500));
     } catch (e) { console.warn('[Зёрнышко] события', e); }
 });

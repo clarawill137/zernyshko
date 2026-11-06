@@ -4,6 +4,7 @@
 import * as E from './engine.js';
 import { A } from './engine.js';
 import { weekInfo, usView, movesNow, PLAN, VACCINES, MILESTONES, DOMAIN, ILLNESSES, sleepNorm, feedWord, pct, visitEvery } from './data.js';
+import * as D from './doctor.js';
 import { ROWS, GROUPS, EYES, HAIR, TEXTURE, SKIN, BUILD, TEMP, TALENTS, POWER_KINDS, POWER_FAMILIES, SERUM, STONES, IQ_TIER, tempType, rollRow, rollAll, ANALYZE_SYSTEM, analyzeInput, normalizeProfile, lookEn, faceEn, isHedyBucky, loreFixed } from './genes.js';
 
 const esc = (v) => A.esc(v);
@@ -55,19 +56,21 @@ export function personRow(cur) {
         else { const s = E.babyState(k, c); mini = s ? s.word : ''; }
         return `<button class="lf-pers pet zr-pers${cur === `zr:${k.id}` ? ' on' : ''}" data-zact="open" data-id="${esc(k.id)}"><span class="lf-ava md">${img ? `<img src="${esc(img)}" alt="">` : ''}<i>${ic(k.stage === 'preg' ? 'sprout' : 'baby')}</i></span><span class="lf-pers-n">${esc(A.shortName(E.kidName(k)))}</span><span class="lf-pers-m">${esc(mini)}</span></button>`;
     };
-    return list.map(btn).join('') + (list.length ? '' : `<button class="lf-pers add zr-pers" data-zact="new"><span class="lf-ava md"><i>${ic('sprout')}</i></span><span class="lf-pers-n">Малыш</span></button>`);
+    return list.map(btn).join('') + (list.length ? '' : `<button class="lf-pers add zr-pers" data-zact="new"><span class="lf-ava md"><i>${ic('sprout')}</i></span><span class="lf-pers-n">Малыш</span></button>`) + D.docRow(cur);
 }
 
 export function sceneHtml() {
     if (!E.cfg().on) return '';
     const l = E.sceneLine();
-    if (!l.length) return '';
-    return `<div class="lf-chips wrap">${l.map(x => `<button class="lf-chip${x.warn ? ' warn' : ''}" data-zact="open" data-id="${esc(x.k.id)}">${ic(x.k.stage === 'preg' ? 'sprout' : 'baby')} ${esc(x.t)}</button>`).join('')}</div>`;
+    const doc = D.sceneChip();
+    if (!l.length && !doc) return '';
+    return `<div class="lf-chips wrap">${doc}${l.map(x => `<button class="lf-chip${x.warn ? ' warn' : ''}" data-zact="open" data-id="${esc(x.k.id)}">${ic(x.k.stage === 'preg' ? 'sprout' : 'baby')} ${esc(x.t)}</button>`).join('')}</div>`;
 }
 
 // ───────────── карточка ребёнка ─────────────
 
 export function renderKid(id) {
+    if (String(id).startsWith('doc:')) return D.renderDoc(String(id).slice(4));
     const k = E.kidById(id);
     if (!k) return `<div class="lf-empty small">${ic('sprout', 'xl')}Такого малыша в этом чате нет.<button class="lf-btn primary" data-zact="new">${ic('plus')} Завести</button></div>`;
     try { E.tick(); } catch (e) { console.warn('[Зёрнышко]', e); }
@@ -580,6 +583,7 @@ export async function onClick(ev) {
     const v = el.dataset.v;
     const rerender = () => { A.render(); try { A.updatePrompt(); } catch { /* */ } };
     try {
+        if (act.startsWith('doc-') && await D.onDocClick(act, el, box, { val, readChips, rerender })) return;
         switch (act) {
             case 'open': A.ui.who = `zr:${el.dataset.id}`; A.ui.tab = 'person'; A.closeSheet(); if (!A.ui.open) A.openHub('person'); else A.render(); return;
             case 'new': A.closeSheet(); setTimeout(newKidSheet, 230); return;
