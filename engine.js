@@ -154,7 +154,7 @@ export function newKid({ mother, father, conception = null, src = 'manual', birt
         genes: {}, preg: { first, plan: {}, comps: {}, today: null, talk: {}, kicks: {}, us: [], events: [], stress: [] },
         birth: null, img: '', album: [], moments: [],
     };
-    if (lore) Object.assign(k.genes, loreFixed(k, profile(mother)));
+    if (lore) { Object.assign(k.genes, loreFixed(k, profile(mother))); k.preg.shield = true; k.preg.bond = true; }
     rollAll(k, profile(mother, 'F'), profile(father, 'M'));
     kids().push(k);
     if (birthAt) birth(k, { at: birthAt, silent: true });
@@ -297,6 +297,19 @@ async function makeDayInner(k, { force = false } = {}) {
 
 function fluSeason(month) { return month >= 8 || month <= 2; }
 function rsvSeason(month) { return month >= 8 || month === 0; }
+/** Энергия (Камней и т.п.) собралась у матки и бережёт плод. По умолчанию — у лора Хеди и Баки. */
+export const shieldOn = (k) => (k.preg?.shield ?? !!k.lore);
+/** Мама чувствует плод через эту энергию. */
+export const bondOn = (k) => (k.preg?.bond ?? !!k.lore);
+/** Что мама чувствует через связь прямо сейчас. */
+export function bondFeel(k, c = clock()) {
+    if (!bondOn(k)) return null;
+    const comps = Object.values(k.preg?.comps || {}).filter(s => s.hit && s.stage !== 'resolved');
+    const stress = (k.preg?.stress || []).filter(x => c.t != null && c.t - x.at < 2 * DAY).reduce((a, x) => a + x.v, 0);
+    if (comps.length) return { bad: true, word: 'Что-то не так', t: 'через связь чувствует: с малышкой что-то не так — тянущее, тревожное чувство, хотя врачи могут ещё ничего не видеть' };
+    if (stress >= 3) return { bad: false, word: 'Беспокоится', t: 'через связь чувствует: малышка беспокоится вместе с ней — притихла, сжалась' };
+    return { bad: false, word: 'В порядке', t: 'через связь чувствует: малышка в порядке — спокойное ровное тепло внизу живота' };
+}
 export function riskFactors(k) {
     const m = mom(k);
     const text = `${(m.acquired || []).join(' ')} ${m.notes || ''} ${(m.features || []).join(' ')}`.toLowerCase();
@@ -304,6 +317,7 @@ export function riskFactors(k) {
     return {
         age35: Number(m.age) >= 35,
         first: k.preg?.first !== false,
+        shield: shieldOn(k),
         twins: (r?.count || 1) > 1,
         girl: k.genes?.sex?.v === 'F',
         scar: /шрам[^.]*живот|рубец[^.]*матк|кесар|вивисек|матк|operац|операц[^.]*живот/.test(text),
@@ -823,6 +837,8 @@ function pregNote(k, c) {
         known.length ? `врачи знают: ${known.join('; ')}` : '',
         signs.length ? `проявляется (покажи телом, причину пока никто не знает): ${signs.join('; ')}` : '',
         echo ? `от сил малыша: ${echo}` : '',
+        shieldOn(k) ? 'энергия Камней собралась у матки и защищает плод' : '',
+        bondFeel(k, c) ? `${short(k.mother)} ${bondFeel(k, c).t}` : '',
         soon.length ? `по плану ведения пора: ${soon.join(', ')}` : '',
     ].filter(Boolean);
     let s = `[Беременность (Зёрнышко): ${bits.join('. ')}. Не всё сразу — к месту, телом и бытом; срок не путать.]`;

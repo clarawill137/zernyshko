@@ -122,6 +122,7 @@ function pregNow(k, c) {
     ${A.sec('Сегодня у неё', esc(c.day.split('-').reverse().slice(0, 2).join('.')))}
     <div class="lf-chips wrap">${sy.map(s => `<span class="lf-chip static">${esc(s.name)}</span>`).join('')}${mv ? `<span class="lf-chip static on">${ic('sparkles')} ${esc(mv.word)}</span>` : ''}${comps.filter(([, s]) => s.stage === 'signs').map(([x]) => `<span class="lf-chip static warn">${ic('activity')} что-то не так</span>`).join('')}</div>
     ${echo ? `<div class="lf-note">${ic('zap')} ${esc(A.cap(echo))}.</div>` : ''}
+    ${E.bondFeel(k, c) ? `<div class="lf-note${E.bondFeel(k, c).bad ? ' zr-warn' : ' zr-need'}">${ic('heart')} <span><b>Связь: ${esc(E.bondFeel(k, c).word.toLowerCase())}.</b> ${esc(A.shortName(k.mother))} ${esc(E.bondFeel(k, c).t.replace(/^через связь /, ''))}.</span></div>` : ''}
     ${A.sec('Тянет', td ? (td.src === 'llm' ? 'придумано на сегодня' : 'из запаса') : 'думаю…')}
     ${td ? `<div class="lf-chips wrap">${td.crave.map(x => `<span class="lf-chip static on">${ic('heart')} ${esc(x)}</span>`).join('')}${td.weird ? `<span class="lf-chip static zr-weird">${ic('sparkles')} ${esc(td.weird)}</span>` : ''}${td.avoid.map(x => `<span class="lf-chip static">${ic('x')} ${esc(x)}</span>`).join('')}<button class="lf-chip" data-zact="day" data-id="${esc(k.id)}">${ic('refresh')}</button></div>
     ${td.ate?.length ? `<div class="lf-hint">Уже съела: ${esc(td.ate.join(', '))}</div>` : ''}
@@ -541,6 +542,8 @@ function editSheet(k) {
         ${preg ? `${fld('Дата зачатия', `<input type="text" data-zin="conc" value="${esc(dateIn(k.conception))}" placeholder="ГГГГ-ММ-ДД">`)}
         <label class="lf-switch"><input type="checkbox" data-zin="repro" ${k.src === 'repro' ? 'checked' : ''}><span></span>Дата из Reproductive${E.repro()?.conception ? ` (${esc(E.fmtDate(E.repro().conception, true))})` : ' — там пусто'}</label>
         <label class="lf-switch"><input type="checkbox" data-zin="first" ${k.preg.first !== false ? 'checked' : ''}><span></span>Первая беременность</label>
+        <label class="lf-switch"><input type="checkbox" data-zin="shield" ${E.shieldOn(k) ? 'checked' : ''}><span></span>Энергия (Камни) у матки защищает плод — меньше осложнений у плода</label>
+        <label class="lf-switch"><input type="checkbox" data-zin="bond" ${E.bondOn(k) ? 'checked' : ''}><span></span>Связь: мама чувствует, в порядке ли плод</label>
         ${fld('Роды <small>(обычно отмечает Летописец по посту)</small>', `<button class="lf-btn full" data-zact="birth" data-id="${esc(k.id)}">${ic('baby')} Родилась сейчас — по времени истории</button>`)}`
         : `${fld('Кормление', chips('feed', [['breast', 'Грудь'], ['mixed', 'Грудь и смесь'], ['formula', 'Смесь']], k.feeding))}
         ${s ? fld('Поправить шкалы', [['food', 'Сытость', s.food], ['diaper', 'Подгузник', s.diaper], ['hold', 'На ручки', s.hold]].map(([key, l, v]) => `<div class="lf-inline zr-range"><span>${l}</span><input type="range" min="0" max="100" data-zin="n-${key}" value="${v}"></div>`).join('') + chips('sleep', [['awake', 'Не спит'], ['asleep', 'Спит']], s.asleep ? 'asleep' : 'awake')) : ''}
@@ -657,6 +660,8 @@ export async function onClick(ev) {
                 if (mo) k.mother = mo; k.father = fa;
                 if (k.stage === 'preg') {
                     k.preg.first = checked(box, 'first');
+                    k.preg.shield = checked(box, 'shield');
+                    k.preg.bond = checked(box, 'bond');
                     if (checked(box, 'repro') && E.repro()?.conception) { k.src = 'repro'; k.conception = E.repro().conception; }
                     else { k.src = 'manual'; const d = parseDay(val(box, 'conc')); if (d) k.conception = d; }
                 } else {

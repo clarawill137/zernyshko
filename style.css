@@ -37,6 +37,7 @@
 #lf-app .lf-i.sm { width: 13px; height: 13px; vertical-align: -2px; }
 
 #lf-app .zr-need { border-color: rgba(143, 169, 133, .45); background: rgba(143, 169, 133, .08); color: var(--lf-text2); }
+#lf-app .zr-warn { border-color: rgba(217, 104, 123, .55); background: rgba(217, 104, 123, .08); color: var(--lf-text2); }
 #lf-app .zr-weird { border-style: dashed; color: var(--lf-rose2); }
 
 /* строки плана */
