@@ -214,8 +214,8 @@ function genesTab(k) {
     <div class="lf-actions"><button class="lf-btn" data-zact="roll-all" data-id="${esc(k.id)}">${ic('dice')} Перебросить всё</button><button class="lf-btn ghost" data-zact="analyze" data-id="${esc(k.id)}">${ic('dna')} Разобрать родителей</button></div>
     ${k.lore ? `<div class="lf-hint">${ic('lock')} Зафиксировано лором: девочка, интеллект мамы, X-ген. Остальное — кубик.</div>` : ''}
     ${Object.entries(groups).map(([grp, rows]) => { const html = rows.map(([id, l]) => row(id, l)).join(''); return html ? `${A.sec(GROUPS[grp])}<div class="zr-genes">${html}</div>` : ''; }).join('')}
-    ${temp ? `<div class="zr-temp">${TEMP.map(([key, l, lo, hi]) => `<div class="zr-temp-r"><span>${esc(l)}</span><small>${esc(lo)}</small><i class="zr-dots">${[1, 2, 3, 4, 5].map(i => `<b class="${i === temp[key] ? 'on' : ''}"></b>`).join('')}</i><small>${esc(hi)}</small></div>`).join('')}<div class="lf-hint">${esc(g.temp.type?.d || '')}</div></div>` : ''}
-    <div class="lf-hint">${ic('dice')} — перебросить строку, ${ic('pencil')} — поправить руками (строка зафиксируется). Приобретённое (шрамы, белые от Камней волосы, протезы) не наследуется.</div>`;
+    ${temp ? `<div class="zr-temp${g.temp.fixed ? ' fixed' : ''}"><div class="zr-temp-h"><b>${esc(g.temp.type?.name || tempType(temp).name)}</b><small>${g.temp.fixed ? `${ic('lock', 'sm')} зафиксировано` : 'тап по точке — поправить'}</small></div>${TEMP.map(([key, l, lo, hi]) => `<div class="zr-temp-r"><span class="zr-temp-l">${esc(l)}</span><small class="zr-temp-lo">${esc(lo)}</small><span class="zr-dots">${[1, 2, 3, 4, 5].map(i => `<button class="${i === temp[key] ? 'on' : ''}" data-zact="temp-dot" data-id="${esc(k.id)}" data-v="${key}:${i}"><b></b></button>`).join('')}</span><small class="zr-temp-hi">${esc(hi)}</small></div>`).join('')}<div class="lf-hint">${esc(g.temp.type?.d || tempType(temp).d)}</div></div>` : ''}
+    <div class="lf-hint">${ic('dice')} — перебросить строку, ${ic('pencil')} — поправить руками (строка зафиксируется, ${ic('lock', 'sm')}). Зафиксированное правится тем же ${ic('pencil')}, а «Снять фиксацию» в нём вернёт строку кубику. Приобретённое (шрамы, белые от Камней волосы, протезы) не наследуется.</div>`;
 }
 
 // ───────────── УЗИ ─────────────
@@ -625,6 +625,13 @@ export async function onClick(ev) {
             case 'gene': geneSheet(k, v); return;
             case 'gene-save': saveGene(box, k, v); A.closeSheet(); rerender(); return;
             case 'gene-unfix': if (k.genes[v]) k.genes[v].fixed = false; E.save(); A.closeSheet(); rerender(); return;
+            case 'temp-dot': {
+                const [key, n] = v.split(':');
+                const t = k.genes.temp = k.genes.temp || { v: {} };
+                t.v = { ...(t.v || {}), [key]: Number(n) };
+                t.type = tempType(t.v); t.fixed = true; t.why = 'поправлено руками'; t.p = '';
+                E.save(); rerender(); return;
+            }
             case 'plan': {
                 const it = PLAN.find(x => x.id === v);
                 if (it?.daily) { const day = E.clock().day; k.preg.vit = k.preg.vit || {}; if (k.preg.vit[v] === day) delete k.preg.vit[v]; else E.planDone(k, v); }
