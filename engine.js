@@ -121,15 +121,15 @@ const same = (a, b) => (A?.sameName ? A.sameName(a, b) : String(a).toLowerCase()
 export const short = (n) => (A?.shortName ? A.shortName(canon(n)) : String(n || '').split(/\s+/)[0]);
 export const userName = () => canon(ctx().name1) || ctx().name1 || '';
 
-export function profile(name) {
+export function profile(name, sex = 'F') {
     const s = cfg();
     const key = canon(name);
-    if (!key) return blankProfile('', 'F');
-    if (!s.profiles[key]) s.profiles[key] = blankProfile(key, 'F');
+    if (!key) return blankProfile('', sex);
+    if (!s.profiles[key]) s.profiles[key] = blankProfile(key, sex);
     return s.profiles[key];
 }
 export const mom = (k) => profile(k.mother);
-export const dad = (k) => profile(k.father);
+export const dad = (k) => profile(k.father, 'M');
 
 /** Текст карточки персонажа / персоны для анализа. */
 export function cardText(name) {
@@ -155,7 +155,7 @@ export function newKid({ mother, father, conception = null, src = 'manual', birt
         birth: null, img: '', album: [], moments: [],
     };
     if (lore) Object.assign(k.genes, loreFixed(k, profile(mother)));
-    rollAll(k, profile(mother), profile(father));
+    rollAll(k, profile(mother, 'F'), profile(father, 'M'));
     kids().push(k);
     if (birthAt) birth(k, { at: birthAt, silent: true });
     save(); saveCfg();
