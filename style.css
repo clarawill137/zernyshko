@@ -65,7 +65,8 @@
 #lf-app .zr-gene .lf-iconbtn { width: 32px; height: 32px; }
 #lf-app .zr-gene .lf-iconbtn .lf-i { width: 18px; height: 18px; }
 #lf-app .zr-gene.fixed .zr-gene-l { color: var(--lf-rose2); }
-#lf-app .zr-lock { opacity: .7; cursor: default; }
+#lf-app .zr-lock { color: var(--lf-rose2); }
+#lf-app .zr-unfix { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--lf-rose2); font-size: 11.5px; cursor: pointer; }
 #lf-app .zr-parent .lf-ava { width: 40px; height: 40px; }
 #lf-app .zr-parent > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 

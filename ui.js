@@ -203,7 +203,7 @@ function genesTab(k) {
         return `<div class="zr-gene${r?.fixed ? ' fixed' : ''}">
             <span class="zr-gene-l">${esc(label)}</span>
             <span class="zr-gene-v"><b class="${hide ? 'lf-blur' : ''}"${hide ? ' data-zact="risks"' : ''}>${esc(geneVal(id, r))}</b>${r?.p ? `<small>${esc(r.p)}</small>` : ''}${r?.why ? `<small>${esc(r.why)}</small>` : ''}${baby}</span>
-            ${r?.fixed ? `<span class="lf-iconbtn sm zr-lock" title="Зафиксировано">${ic('lock')}</span>` : `<button class="lf-iconbtn sm" data-zact="roll" data-id="${esc(k.id)}" data-v="${id}" title="Перебросить">${ic('dice')}</button>`}
+            ${r?.fixed ? `<button class="lf-iconbtn sm zr-lock" data-zact="unfix" data-id="${esc(k.id)}" data-v="${id}" title="Снять фиксацию — снова кубик">${ic('lock')}</button>` : `<button class="lf-iconbtn sm" data-zact="roll" data-id="${esc(k.id)}" data-v="${id}" title="Перебросить">${ic('dice')}</button>`}
             <button class="lf-iconbtn sm" data-zact="gene" data-id="${esc(k.id)}" data-v="${id}" title="Править">${ic('pencil')}</button>
         </div>`;
     };
@@ -214,8 +214,8 @@ function genesTab(k) {
     <div class="lf-actions"><button class="lf-btn" data-zact="roll-all" data-id="${esc(k.id)}">${ic('dice')} Перебросить всё</button><button class="lf-btn ghost" data-zact="analyze" data-id="${esc(k.id)}">${ic('dna')} Разобрать родителей</button></div>
     ${k.lore ? `<div class="lf-hint">${ic('lock')} Зафиксировано лором: девочка, интеллект мамы, X-ген. Остальное — кубик.</div>` : ''}
     ${Object.entries(groups).map(([grp, rows]) => { const html = rows.map(([id, l]) => row(id, l)).join(''); return html ? `${A.sec(GROUPS[grp])}<div class="zr-genes">${html}</div>` : ''; }).join('')}
-    ${temp ? `<div class="zr-temp${g.temp.fixed ? ' fixed' : ''}"><div class="zr-temp-h"><b>${esc(g.temp.type?.name || tempType(temp).name)}</b><small>${g.temp.fixed ? `${ic('lock', 'sm')} зафиксировано` : 'тап по точке — поправить'}</small></div>${TEMP.map(([key, l, lo, hi]) => `<div class="zr-temp-r"><span class="zr-temp-l">${esc(l)}</span><small class="zr-temp-lo">${esc(lo)}</small><span class="zr-dots">${[1, 2, 3, 4, 5].map(i => `<button class="${i === temp[key] ? 'on' : ''}" data-zact="temp-dot" data-id="${esc(k.id)}" data-v="${key}:${i}"><b></b></button>`).join('')}</span><small class="zr-temp-hi">${esc(hi)}</small></div>`).join('')}<div class="lf-hint">${esc(g.temp.type?.d || tempType(temp).d)}</div></div>` : ''}
-    <div class="lf-hint">${ic('dice')} — перебросить строку, ${ic('pencil')} — поправить руками (строка зафиксируется, ${ic('lock', 'sm')}). Зафиксированное правится тем же ${ic('pencil')}, а «Снять фиксацию» в нём вернёт строку кубику. Приобретённое (шрамы, белые от Камней волосы, протезы) не наследуется.</div>`;
+    ${temp ? `<div class="zr-temp${g.temp.fixed ? ' fixed' : ''}"><div class="zr-temp-h"><b>${esc(g.temp.type?.name || tempType(temp).name)}</b><small>${g.temp.fixed ? `<button class="zr-unfix" data-zact="unfix" data-id="${esc(k.id)}" data-v="temp">${ic('lock', 'sm')} зафиксировано · снять</button>` : 'тап по точке — поправить'}</small></div>${TEMP.map(([key, l, lo, hi]) => `<div class="zr-temp-r"><span class="zr-temp-l">${esc(l)}</span><small class="zr-temp-lo">${esc(lo)}</small><span class="zr-dots">${[1, 2, 3, 4, 5].map(i => `<button class="${i === temp[key] ? 'on' : ''}" data-zact="temp-dot" data-id="${esc(k.id)}" data-v="${key}:${i}"><b></b></button>`).join('')}</span><small class="zr-temp-hi">${esc(hi)}</small></div>`).join('')}<div class="lf-hint">${esc(g.temp.type?.d || tempType(temp).d)}</div></div>` : ''}
+    <div class="lf-hint">${ic('dice')} — перебросить строку, ${ic('pencil')} — поправить руками (строка зафиксируется, ${ic('lock', 'sm')}). Зафиксированное правится тем же ${ic('pencil')}; тап по ${ic('lock', 'sm')} снимает фиксацию — строка снова на кубике. Приобретённое (шрамы, белые от Камней волосы, протезы) не наследуется.</div>`;
 }
 
 // ───────────── УЗИ ─────────────
@@ -625,6 +625,7 @@ export async function onClick(ev) {
             case 'gene': geneSheet(k, v); return;
             case 'gene-save': saveGene(box, k, v); A.closeSheet(); rerender(); return;
             case 'gene-unfix': if (k.genes[v]) k.genes[v].fixed = false; E.save(); A.closeSheet(); rerender(); return;
+            case 'unfix': if (k.genes[v]) k.genes[v].fixed = false; E.save(); A.toast('info', 'Снова на кубике — 🎲 перебросит', '✦ Зёрнышко', { timeOut: 1800 }); rerender(); return;
             case 'temp-dot': {
                 const [key, n] = v.split(':');
                 const t = k.genes.temp = k.genes.temp || { v: {} };
