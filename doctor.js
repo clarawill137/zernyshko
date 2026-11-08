@@ -425,7 +425,8 @@ function visitTab(d) {
     const empty = !d.character && !d.speech;
     return `
     ${empty ? `<div class="lf-note">${ic('notes')} Досье пустое — <button class="zr-link" data-zact="doc-tab" data-id="${esc(d.id)}" data-v="file">заполнить по чату</button>, чтобы модель играла её узнаваемо.</div>` : ''}
-    <div class="zr-state${onHere ? ' warn' : ''}"><b>${onHere ? 'Приём идёт' : 'Не на приёме'}</b><span>${onHere ? esc(vn.why || '') : 'Включится сам, когда сцена в клинике или её имя прозвучит в посте.'}</span></div>
+    <div class="zr-state${onHere ? ' warn' : ''}"><b>${onHere ? 'Приём идёт' : m.visit.on === 'off' ? 'Приём выключен' : 'Не на приёме'}</b><span>${onHere ? esc(vn.why || '') : m.visit.on === 'off' ? 'Стоит «Нет» — врач молчит даже в клинике. Нажми «Сам», чтобы включался по месту и имени, или «Идёт» — прямо сейчас.' : 'Включится сам, когда сцена в клинике или её имя прозвучит в посте.'}</span></div>
+    <div class="lf-hint">Приём: «Сам» — по месту и имени, «Идёт» — включить сейчас, «Нет» — выключить.</div>
     <div class="lf-seg zr-seg">${[['auto', 'Сам'], ['on', 'Идёт'], ['off', 'Нет']].map(([k2, t]) => `<button class="${(m.visit.on || 'auto') === k2 ? 'on' : ''}" data-zact="doc-visit" data-id="${esc(d.id)}" data-v="${k2}">${t}</button>`).join('')}</div>
     ${k ? `${A.sec('Сегодня на приёме', esc(ag.stamp))}
     <div class="lf-hint">${esc(A.cap(ag.routine || ''))}.</div>
