@@ -352,6 +352,18 @@ export async function onUserPost(i) {
     } catch (e) { console.warn('[Зёрнышко] врач из поста', e); return []; } finally { userBusy = false; }
 }
 
+/** Выбранный исход правда сыгран в посте: его цифры или его слова там есть (а не просто «врач поздоровалась»). */
+function outcomePlayed(out, text) {
+    const norm = (v) => String(v || '').toLowerCase().replace(/ё/g, 'е').replace(/(\d),(\d)/g, '$1.$2');
+    const t = norm(text);
+    const src = norm(`${out.found || ''} ${out.said || ''}`);
+    const nums = [...new Set((src.match(/\d+(?:[.\/]\d+)?/g) || []).filter(n => n.replace(/\D/g, '').length >= 2))];
+    if (nums.some(n => new RegExp(`(^|[^\\d.])${reEsc(n)}(?![\\d])`).test(t))) return true;
+    const words = [...new Set((src.match(/[а-яa-z]{7,}/g) || []).map(w => w.slice(0, 6)))];
+    if (!words.length) return null;
+    return words.filter(w => t.includes(w)).length >= Math.min(4, Math.ceil(words.length / 3));
+}
+
 /** После поста бота: Летописец уже сказал, был ли приём (z.doctor / z.plan). */
 /** Зовётся ДО движка: выбранный исход должен успеть отменить то, что откроет план. */
 export function onBotPost(i, z) {
@@ -359,7 +371,13 @@ export function onBotPost(i, z) {
     const plan = (Array.isArray(z.plan) ? z.plan : []).filter(Boolean).map(String);
     const vax = (Array.isArray(z.baby?.vax) ? z.baby.vax : []).filter(Boolean).map(x => `vax:${x}`);
     if (!z.doctor && !plan.length && !vax.length && !z.baby?.check) return [];
-    if (M().visit.outcome) return visitHappened({ src: 'bot', mes: i, said: String(z.doctor || ''), plan: [...plan, ...vax] });
+    const out = M().visit.outcome;
+    if (out) {
+        // исход тратится, только когда приём правда сыгран; «Васкез вышла навстречу» — ещё нет, исход ждёт дальше
+        const played = outcomePlayed(out, E.ctx().chat?.[i]?.mes || '');
+        if (played || (played === null && plan.length)) return visitHappened({ src: 'bot', mes: i, said: String(z.doctor || ''), plan: [...plan, ...vax] });
+        return [];
+    }
     const d = visitNow().d;
     const k = kidFor(d);
     if (!k) return [];
