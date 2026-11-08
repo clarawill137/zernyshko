@@ -61,6 +61,8 @@ function register() {
             try { toastEvents(E.tick()); } catch { /* */ }
             return [E.promptNote(type), D.promptDoc()].filter(Boolean).join('\n');
         },
+        // карточка-«артефакт» в посте с фото УЗИ — сюда идёт снимок из Зёрнышка (тот, что видят боты)
+        artImage: (info) => (asleep() ? null : E.usForArt(info)),
         chron: () => {
             if (asleep()) return null;
             const h = E.chronHook();

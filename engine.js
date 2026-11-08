@@ -867,6 +867,28 @@ export function describeUS(k, x, { force = false } = {}) {
     return p;
 }
 
+/**
+ * Карточка в посте (фото-артефакт) — это снимок УЗИ? Тогда отдать свой последний снимок, если срок сходится:
+ * неделя в подписи — та же (±1), а без недели — снимок свежий (до трёх недель по истории).
+ */
+const US_UP = /УЗИ|КТР|\bCRL\b/;
+const US_ANY = /ультразвук|сонограм|узи-снимок|плодн\S* яйц|желточн|ultrasound|sonogra/i;
+export function usForArt(info) {
+    const t = String(info?.text || '');
+    if (!US_UP.test(t) && !US_ANY.test(t)) return null;
+    const c = clock();
+    const wm = t.match(/(\d{1,2})\s*(?:нед|wk|week|w\s)/i);
+    for (const k of kids()) {
+        if (k.stage !== 'preg') continue;
+        const x = usLast(k, c.t);
+        if (!x?.img) continue;
+        if (wm ? Math.abs(Number(wm[1]) - (x.week || 0)) > 1 : (c.t != null && x.at != null && Math.abs(c.t - x.at) > 21 * DAY)) continue;
+        if (/\b3D\b|3Д|объёмн|объемн/i.test(t) && !x.three) continue; // просят объёмное, а снимок обычный
+        return { src: x.img, label: `снимок ${x.week} нед из Зёрнышка`, week: x.week };
+    }
+    return null;
+}
+
 // ───────────── скрытая заметка модели ─────────────
 
 function present(name) {
