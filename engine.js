@@ -1,7 +1,7 @@
 // Движок Зёрнышка: время истории (Horae через Life), срок (дата зачатия из Reproductive), симптомы, тяга, план, осложнения,
 // роды, потребности малыша, привязанность, болезни, прививки, вехи, проявления сил. Всё хранится в метаданных чата.
 
-import { WEEKS, weekInfo, SYMPTOMS, movesNow, CRAVINGS, AVERSIONS, PICA_RE, PLAN, visitEvery, COMPLICATIONS, feedHours, wakeWindow, diaperHours, MILESTONES, VACCINES, CHECKUPS, ILLNESSES, ILL_PER_YEAR, growthAt } from './data.js';
+import { WEEKS, weekInfo, usView, SYMPTOMS, movesNow, CRAVINGS, AVERSIONS, PICA_RE, PLAN, visitEvery, COMPLICATIONS, feedHours, wakeWindow, diaperHours, MILESTONES, VACCINES, CHECKUPS, ILLNESSES, ILL_PER_YEAR, growthAt } from './data.js';
 import { blankProfile, rollAll, loreFixed, isHedyBucky, isMutant, hasStones, hasSerum, summaryRu, SERUM, STONES, POWER_FAMILIES, IQ_TIER } from './genes.js';
 
 export let A = null; // api Life
@@ -795,6 +795,78 @@ export function afterPost(i, j, msg) {
     return out;
 }
 
+// ───────────── снимок УЗИ глазами ботов ─────────────
+// Модель Летописца смотрит на сам снимок и пишет, что на нём видно, — это уходит в заметку,
+// чтобы в сцене показывали ровно эту картинку, а не «малыша с УЗИ» из головы.
+
+const US_SEE = `Ты — глаза персонажей ролевой истории. Тебе показывают снимок УЗИ, который в истории сделали на приёме. Опиши его так, чтобы персонажи, глядя на него в сцене, видели ровно эту картинку.
+Пиши по-русски, одним абзацем, 2–3 предложения (до 60 слов), сразу описание — без вступлений, кавычек и списков:
+— какой снимок: чёрно-белый веер (узкий или широкий) или объёмное 3D;
+— что на нём: тёмное плодное яйцо, светлое колечко желточного мешка, сам эмбрион или плод — какой он по сравнению с остальным, форма, поза, что уже различимо (голова, ручки, ножки, профиль, лицо) и чего ещё не разглядеть;
+— крестики замеров, если они есть.
+Только то, что видно на этой картинке, а не учебник: если на снимке больше или меньше, чем бывает на этом сроке, пиши как на снимке. Без диагнозов и «всё хорошо», без надписей и цифр, которых на снимке нет.`;
+
+const usSeeBusy = new Map(); // снимок → обещание
+const usSeeFail = new Map(); // снимок → { at, msg } — повтор не раньше чем через 10 минут
+
+const usAge = (x) => (x?.week ? `${x.week} нед${x.day != null ? ` ${x.day} дн` : ''}` : '');
+
+/** Последний снимок на сегодня в истории (снимки «из будущего» после отката не считаются). */
+export function usLast(k, t = clock().t) {
+    const list = (k?.preg?.us || []).filter(x => x?.img && !(t != null && x.at != null && x.at > t + DAY));
+    return list[list.length - 1] || null;
+}
+export const usSeeing = (x) => !!x && usSeeBusy.has(x.img);
+export const usSeeErr = (x) => (x && usSeeFail.get(x.img)?.msg) || '';
+
+function cleanSee(s) {
+    let t = String(s || '').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```[a-z]*/gi, '');
+    t = t.replace(/\*\*/g, '').trim().replace(/(\S?)[ \t]*\n+\s*[-—•*]?\s*/g, (m, p) => `${p}${p && !/[.!?;:,…]/.test(p) ? ';' : ''} `).replace(/\s{2,}/g, ' ').trim();
+    for (let n = 0; n < 2; n++) t = t.replace(/^[«"“„]+|[»"”]+$/g, '').replace(/^(описание( снимка)?|что на снимке|на снимке видно)\s*[:：]\s*/i, '').trim();
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    if (t.length > 520) {
+        const cut = t.slice(0, 520);
+        const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('… '));
+        t = end > 200 ? cut.slice(0, end + 1) : `${cut.replace(/\s+\S*$/, '')}…`;
+    }
+    return t;
+}
+
+/** Модель Летописца разглядывает снимок; описание ложится в сам снимок (x.desc). */
+export function describeUS(k, x, { force = false } = {}) {
+    if (!k || !x?.img || !A?.askModel || !A?.refData) return Promise.resolve(false);
+    if (usSeeBusy.has(x.img)) return usSeeBusy.get(x.img);
+    const fail = usSeeFail.get(x.img);
+    if (!force && (x.desc || (fail && Date.now() - fail.at < 10 * 60e3))) return Promise.resolve(false);
+    const p = (async () => {
+        try {
+            const url = await A.refData(x.img, 1024);
+            if (!url) throw new Error('снимок не открылся');
+            const age = usAge(x);
+            const ask = `${age ? `Срок по истории: ${age} (акушерский). ` : ''}${x.three ? 'Это объёмное 3D-УЗИ. ' : ''}Опиши снимок.`;
+            const out = await A.askModel([
+                { role: 'system', content: US_SEE },
+                { role: 'user', content: [{ type: 'text', text: ask }, { type: 'image_url', image_url: { url } }] },
+            ], 900);
+            const d = cleanSee(out);
+            if (d.length < 20) throw new Error('модель не описала снимок');
+            if (kidById(k.id) !== k || !(k.preg?.us || []).includes(x)) return false; // сменили чат или убрали снимок
+            if (x.descOwn && !force) return false; // пока смотрели — она вписала своё
+            x.desc = d; x.descAt = Date.now(); delete x.descOwn;
+            usSeeFail.delete(x.img);
+            save();
+            return true;
+        } catch (e) {
+            const msg = String(e?.cause?.message || e?.message || e).replace(/\s+/g, ' ').slice(0, 140);
+            usSeeFail.set(x.img, { at: Date.now(), msg });
+            console.warn('[Зёрнышко] снимок УЗИ глазами ботов', e);
+            return false;
+        } finally { usSeeBusy.delete(x.img); }
+    })();
+    usSeeBusy.set(x.img, p);
+    return p;
+}
+
 // ───────────── скрытая заметка модели ─────────────
 
 function present(name) {
@@ -808,7 +880,7 @@ export function promptNote(type) {
     const c = clock();
     const out = [];
     for (const k of kids()) {
-        if (k.stage === 'preg') { const s = pregNote(k, c); if (s) out.push(s); }
+        if (k.stage === 'preg') { const s = pregNote(k, c); if (s) out.push(s); const u = usNote(k, c); if (u) out.push(u); }
         else if (k.stage === 'baby') { const s = babyNote(k, c); if (s) out.push(s); }
     }
     return out.join('\n');
@@ -847,6 +919,19 @@ function pregNote(k, c) {
         if (pool.length) s += `\n[Симптом — только в этом ответе: где-то в сцене у ${short(k.mother)} ${pool[Math.floor(R() * pool.length)]}. Это тело, а не выбор: без её слов и решений; пусть окружающие заметят и отреагируют.]`;
     }
     return s;
+}
+
+/** Последний снимок УЗИ — каким его видят, когда показывают в сцене. */
+function usNote(k, c) {
+    const tm = term(k, c.t);
+    if (!tm || tm.before) return '';
+    if (!present(k.mother) && !(k.father && present(k.father))) return '';
+    const x = usLast(k, c.t);
+    if (!x) return '';
+    if (!x.desc) describeUS(k, x).then(ok => { if (ok) { try { A.updatePrompt?.(); A.render?.(); } catch { /* */ } } });
+    const see = String(x.desc || x.want || usView(x.week || tm.ow).ru).trim();
+    const when = [x.at != null ? fmtDate(x.at) : '', usAge(x)].filter(Boolean).join(', ');
+    return `[Снимок УЗИ (Зёрнышко)${when ? `, ${when}` : ''}: ${see}${/[.!?…]$/.test(see) ? '' : '.'} Если этот снимок показывают, разглядывают или вспоминают — на нём ровно это, без выдумок; без повода не поднимать.]`;
 }
 
 function babyNote(k, c) {

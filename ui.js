@@ -223,14 +223,40 @@ function genesTab(k) {
 
 // ───────────── УЗИ ─────────────
 
+const usAge = (x) => `${x.week} нед${x.day != null ? ` ${x.day} дн` : ''}`;
+const usSeen = (ok) => { if (ok) { A.render(); try { A.updatePrompt(); } catch { /* */ } } };
+
+/** Что боты знают о последнем снимке — это уходит в заметку модели. */
+function usSeeBox(k, x) {
+    if (!x) return '';
+    const busy = E.usSeeing(x), err = E.usSeeErr(x);
+    const text = x.desc ? esc(x.desc)
+        : busy ? '<i>разглядывают снимок…</i>'
+        : err ? `<i>не вышло разглядеть (${esc(err)}) — пока знают его только по сроку</i>`
+        : '<i>ещё не разглядели</i>';
+    return `<div class="lf-note zr-us-see">${ic('eye')}<div class="zr-us-see-t"><b>Так его видят боты · ${esc(usAge(x))}${x.descOwn ? ' · твоими словами' : ''}</b><span>${text}</span></div><div class="zr-us-see-a"><button class="lf-iconbtn sm" data-zact="us-see" data-id="${esc(k.id)}" title="Пусть посмотрят ещё раз"${busy ? ' disabled' : ''}>${ic('refresh')}</button><button class="lf-iconbtn sm" data-zact="us-see-edit" data-id="${esc(k.id)}" title="Поправить, что видят">${ic('pencil')}</button></div></div>`;
+}
+
+function usSeeSheet(k) {
+    const x = E.usLast(k);
+    if (!x) return;
+    A.openSheet(`${ic('eye')} Что на снимке`, `
+    <div class="lf-hint">Это уходит ботам: когда снимок ${esc(usAge(x))} показывают в сцене, его описывают ровно так. Сотри всё и сохрани — модель разглядит заново.</div>
+    ${fld('Что видно', `<textarea data-zin="usdesc" rows="5">${esc(x.desc || '')}</textarea>`)}
+    <div class="lf-actions"><button class="lf-btn primary" data-zact="us-see-save" data-id="${esc(k.id)}">${ic('check')} Сохранить</button></div>`);
+}
+
 function usTab(k, c) {
     const tm = E.term(k, c.t);
     const list = [...(k.preg.us || [])].reverse();
     const v = tm && !tm.before ? usView(tm.ow) : null;
+    const last = E.usLast(k, c.t);
+    if (last && !last.desc && !E.usSeeing(last) && !E.usSeeErr(last)) E.describeUS(k, last).then(usSeen);
     return `
     ${v ? `<div class="lf-note">${ic('scan')} На ${tm.ow} неделе видно: ${esc(v.ru.toLowerCase())}</div>` : ''}
+    ${usSeeBox(k, last)}
     <div class="lf-actions"><button class="lf-btn primary" data-zact="us-draw" data-id="${esc(k.id)}">${ic('scan')} Снимок ${tm ? `(${tm.ow} нед)` : ''}</button><label class="lf-btn">${ic('upload')} Свой<input type="file" accept="image/*" data-zfile="us" data-id="${esc(k.id)}" hidden></label></div>
-    ${list.length ? `<div class="lf-grid zr-grid">${list.map(x => `<div class="zr-us-t"><button class="lf-tile" data-zact="zoom" data-src="${esc(x.img)}" data-cap="${esc(`${x.week} нед${x.three ? ' · 3D' : ''}`)}"><img src="${esc(x.img)}" alt="" loading="lazy"><span class="lf-tile-n">${x.week} нед${x.three ? ' · 3D' : ''}</span></button><button class="lf-iconbtn sm zr-us-del${zui.usDel === x.img ? ' warn' : ''}" data-zact="us-del" data-id="${esc(k.id)}" data-src="${esc(x.img)}" title="${zui.usDel === x.img ? 'Точно убрать? Тапни ещё раз' : 'Убрать снимок'}">${ic(zui.usDel === x.img ? 'trash' : 'x')}</button></div>`).join('')}</div>` : '<div class="lf-empty small">Снимков пока нет. С 28 недель — объёмное 3D, лицо по выпавшим генам.</div>'}`;
+    ${list.length ? `<div class="lf-grid zr-grid">${list.map(x => `<div class="zr-us-t"><button class="lf-tile" data-zact="zoom" data-src="${esc(x.img)}" data-cap="${esc(`${usAge(x)}${x.three ? ' · 3D' : ''}`)}"><img src="${esc(x.img)}" alt="" loading="lazy"><span class="lf-tile-n">${x.week} нед${x.three ? ' · 3D' : ''}</span></button><button class="lf-iconbtn sm zr-us-del${zui.usDel === x.img ? ' warn' : ''}" data-zact="us-del" data-id="${esc(k.id)}" data-src="${esc(x.img)}" title="${zui.usDel === x.img ? 'Точно убрать? Тапни ещё раз' : 'Убрать снимок'}">${ic(zui.usDel === x.img ? 'trash' : 'x')}</button></div>`).join('')}</div>` : '<div class="lf-empty small">Снимков пока нет. С 28 недель — объёмное 3D, лицо по выпавшим генам.</div>'}`;
 }
 
 // ───────────── связь ─────────────
@@ -379,8 +405,10 @@ async function drawUS(k) {
         : ` IMPORTANT: ${age} — not a 12-week baby yet: no detailed facial profile, the limbs are only short stubs, the head is big and round.`;
     const prompt = `Medical ultrasound image at ${age} of pregnancy${crl}: ${v.en}.${guard}\n${look}. Realistic and clinical. No readable text, no watermark, no people, no hands.`;
     const img = await A.drawPicture(prompt, { aspect: '4:3', prefix: 'zr_us' });
-    k.preg.us = [...(k.preg.us || []), { img, week: tm.ow, day: tm.od, at: c.t, three: !!v.three }];
+    const x = { img, week: tm.ow, day: tm.od, at: c.t, three: !!v.three, want: v.ru };
+    k.preg.us = [...(k.preg.us || []), x];
     E.save();
+    E.describeUS(k, x).then(usSeen); // боты увидят именно эту картинку
 }
 
 async function drawPortrait(k) {
@@ -664,6 +692,24 @@ export async function onClick(ev) {
                 k.preg.us = (k.preg.us || []).filter(x => x.img !== src);
                 E.save(); rerender(); return;
             }
+            case 'us-see': {
+                const x = E.usLast(k);
+                if (!x) return;
+                await A.withBusy(el, () => E.describeUS(k, x, { force: true }), '');
+                if (E.usSeeErr(x)) A.toast('warning', `Не разглядели снимок: ${esc(E.usSeeErr(x))}`, '✦ Зёрнышко', { timeOut: 8000 });
+                rerender(); return;
+            }
+            case 'us-see-edit': usSeeSheet(k); return;
+            case 'us-see-save': {
+                const x = E.usLast(k);
+                if (x) {
+                    const t = val(box, 'usdesc').replace(/\s+/g, ' ').trim();
+                    if (t) { x.desc = t.slice(0, 700); x.descOwn = true; x.descAt = Date.now(); }
+                    else { delete x.desc; delete x.descOwn; }
+                    E.save();
+                }
+                A.closeSheet(); rerender(); return;
+            }
             case 'pic-draw': await A.withBusy(el, () => drawPortrait(k)); rerender(); return;
             case 'main-pic': k.img = el.dataset.src; E.save(); A.closeSheet(); rerender(); return;
             case 'with': k.with = v; E.save(); rerender(); return;
@@ -729,7 +775,7 @@ export function onChange(ev) {
         A.withBusy(el.closest('label'), async () => {
             const path = await A.uploadImage(await A.fileToJpeg(el.files[0], 1400), `zr_${kind}`);
             const c = E.clock();
-            if (kind === 'us') { const tm = E.term(k, c.t); k.preg.us = [...(k.preg.us || []), { img: path, week: tm?.ow || 0, at: c.t, own: true }]; }
+            if (kind === 'us') { const tm = E.term(k, c.t); const x = { img: path, week: tm?.ow || 0, day: tm?.od ?? null, at: c.t, own: true }; k.preg.us = [...(k.preg.us || []), x]; setTimeout(() => E.describeUS(k, x).then(usSeen), 300); }
             else { const ag = E.age(k, c.t); k.album = [...(k.album || []), { img: path, label: ag?.label || '', at: c.t, own: true }]; k.img = path; }
             E.save(); A.render();
         }, 'Загружаю…');

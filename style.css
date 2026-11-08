@@ -145,3 +145,13 @@
 #lf-app .zr-us-t .lf-tile { width: 100%; }
 #lf-app .zr-us-del { position: absolute; top: 4px; right: 4px; z-index: 2; opacity: .75; background: rgba(0, 0, 0, .55); }
 #lf-app .zr-us-del.warn { opacity: 1; color: var(--lf-rose); border-color: rgba(217, 104, 123, .6); }
+
+/* 0.2.7: что боты видят на последнем снимке */
+#lf-app .zr-us-see { align-items: flex-start; }
+#lf-app .zr-us-see > .lf-i { flex: none; margin-top: 2px; }
+#lf-app .zr-us-see-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1.45; }
+#lf-app .zr-us-see-t b { color: var(--lf-text); font-weight: 600; font-size: 12.5px; }
+#lf-app .zr-us-see-t span { color: var(--lf-text2, var(--lf-dim)); }
+#lf-app .zr-us-see-t i { color: var(--lf-dim); }
+#lf-app .zr-us-see-a { flex: none; display: flex; gap: 2px; margin: -4px -6px -4px 0; }
+#lf-app .zr-us-see-a .lf-iconbtn[disabled] { opacity: .4; }
