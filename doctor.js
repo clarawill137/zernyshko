@@ -499,7 +499,7 @@ function cardTab(d) {
     const list = [...M().medlog].filter(x => x.docId === d.id || !x.docId).reverse().slice(0, 60);
     if (!list.length) return '<div class="lf-empty small">Карта пустая. Приёмы запишутся сами — из постов бота, из твоих и из выбранных исходов.</div>';
     return `<div class="lf-timeline">${list.map(x => `<div class="lf-tl zr-tl"><span class="lf-tl-dot${x.src === 'user' ? ' on' : ''}"></span><span class="lf-tl-txt"${x.mes != null ? ` data-act="jump" data-mes="${x.mes}"` : ''}><b>${esc(x.title || x.done?.join(', ') || 'Приём')}</b>${x.found ? `<span class="zr-tl-p">${esc(x.found)}</span>` : ''}${x.said ? `<span class="zr-tl-p zr-it">«${esc(x.said)}»</span>` : ''}<small>${esc(E.fmtDate(x.at))} · ${esc(x.stamp || '')} · ${esc(SRC[x.src] || '')}${x.next ? ` · дальше: ${esc(x.next)}` : ''}${x.mes != null ? ` · #${x.mes}` : ''}</small></span>
-        <button class="lf-iconbtn sm zr-tl-del${dui.logDel === x.id ? ' warn' : ''}" data-zact="log-del" data-id="${esc(d.id)}" data-v="${esc(x.id)}" title="${dui.logDel === x.id ? 'Точно убрать? Тапни ещё раз' : 'Убрать запись'}">${ic(dui.logDel === x.id ? 'trash' : 'x')}</button></div>`).join('')}</div>
+        <button class="lf-iconbtn sm zr-tl-del${dui.logDel === x.id ? ' warn' : ''}" data-zact="doc-logdel" data-id="${esc(d.id)}" data-v="${esc(x.id)}" title="${dui.logDel === x.id ? 'Точно убрать? Тапни ещё раз' : 'Убрать запись'}">${ic(dui.logDel === x.id ? 'trash' : 'x')}</button></div>`).join('')}</div>
     <div class="lf-hint">Один день сюжета — одна запись: всё, что врач скажет за этот приём, допишется в неё. Лишнюю убери крестиком (тап дважды).</div>`;
 }
 
@@ -561,7 +561,7 @@ export async function onDocClick(act, el, box, helpers) {
         case 'doc-opts': await A.withBusy(el, () => makeOptions(d, kidFor(d)), 'Думаю…'); rerender(); return true;
         case 'doc-pick': pickOption(v); rerender(); A.toast('info', 'Исход уйдёт модели на приёме', '✦ Зёрнышко', { timeOut: 2200 }); return true;
         case 'doc-unpick': M().visit.outcome = null; E.save(); rerender(); return true;
-        case 'log-del':
+        case 'doc-logdel':
             if (dui.logDel !== v) { dui.logDel = v; rerender(); return true; }
             M().medlog = M().medlog.filter(x => x.id !== v); dui.logDel = ''; E.save(); rerender(); return true;
         case 'doc-custom': { const t = val(box || el.closest('.zr'), 'custom'); if (!t) { A.toast('warning', 'Напиши, что будет'); return true; } customOutcome(t, d, kidFor(d)); rerender(); return true; }
