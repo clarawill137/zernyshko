@@ -884,7 +884,7 @@ export function usForArt(info) {
         if (!x?.img) continue;
         if (wm ? Math.abs(Number(wm[1]) - (x.week || 0)) > 1 : (c.t != null && x.at != null && Math.abs(c.t - x.at) > 21 * DAY)) continue;
         if (/\b3D\b|3Д|объёмн|объемн/i.test(t) && !x.three) continue; // просят объёмное, а снимок обычный
-        return { src: x.img, label: `снимок ${x.week} нед из Зёрнышка`, week: x.week };
+        return { src: x.img, label: `снимок ${x.week} нед из Зёрнышка`, week: x.week, prompt: `Medical ultrasound printout at ${x.week} weeks${x.day ? ` ${x.day} days` : ''} of pregnancy: ${usView(x.week || 7).en}` };
     }
     return null;
 }
