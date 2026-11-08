@@ -8,7 +8,7 @@ import * as D from './doctor.js';
 import { ROWS, GROUPS, EYES, HAIR, TEXTURE, SKIN, BUILD, TEMP, TALENTS, POWER_KINDS, POWER_FAMILIES, SERUM, STONES, IQ_TIER, tempType, rollRow, rollAll, ANALYZE_SYSTEM, analyzeInput, normalizeProfile, lookEn, faceEn, isHedyBucky, loreFixed } from './genes.js';
 
 const esc = (v) => A.esc(v);
-const zui = { tab: {}, risks: false, del: '' };
+const zui = { tab: {}, risks: false, del: '', usDel: '' };
 export const _zui = zui;
 
 // ───────────── иконки (свои — в том же тонком стиле) ─────────────
@@ -230,7 +230,7 @@ function usTab(k, c) {
     return `
     ${v ? `<div class="lf-note">${ic('scan')} На ${tm.ow} неделе видно: ${esc(v.ru.toLowerCase())}</div>` : ''}
     <div class="lf-actions"><button class="lf-btn primary" data-zact="us-draw" data-id="${esc(k.id)}">${ic('scan')} Снимок ${tm ? `(${tm.ow} нед)` : ''}</button><label class="lf-btn">${ic('upload')} Свой<input type="file" accept="image/*" data-zfile="us" data-id="${esc(k.id)}" hidden></label></div>
-    ${list.length ? `<div class="lf-grid zr-grid">${list.map((x, i) => `<button class="lf-tile" data-zact="zoom" data-src="${esc(x.img)}" data-cap="${esc(`${x.week} нед${x.three ? ' · 3D' : ''}`)}"><img src="${esc(x.img)}" alt="" loading="lazy"><span class="lf-tile-n">${x.week} нед${x.three ? ' · 3D' : ''}</span></button>`).join('')}</div>` : '<div class="lf-empty small">Снимков пока нет. С 28 недель — объёмное 3D, лицо по выпавшим генам.</div>'}`;
+    ${list.length ? `<div class="lf-grid zr-grid">${list.map(x => `<div class="zr-us-t"><button class="lf-tile" data-zact="zoom" data-src="${esc(x.img)}" data-cap="${esc(`${x.week} нед${x.three ? ' · 3D' : ''}`)}"><img src="${esc(x.img)}" alt="" loading="lazy"><span class="lf-tile-n">${x.week} нед${x.three ? ' · 3D' : ''}</span></button><button class="lf-iconbtn sm zr-us-del${zui.usDel === x.img ? ' warn' : ''}" data-zact="us-del" data-id="${esc(k.id)}" data-src="${esc(x.img)}" title="${zui.usDel === x.img ? 'Точно убрать? Тапни ещё раз' : 'Убрать снимок'}">${ic(zui.usDel === x.img ? 'trash' : 'x')}</button></div>`).join('')}</div>` : '<div class="lf-empty small">Снимков пока нет. С 28 недель — объёмное 3D, лицо по выпавшим генам.</div>'}`;
 }
 
 // ───────────── связь ─────────────
@@ -365,10 +365,19 @@ async function drawUS(k) {
     const tm = E.term(k, c.t);
     if (!tm || tm.before) throw new Error('нет срока');
     const v = usView(tm.ow, { face: faceEn(k) });
+    const wk = weekInfo(tm.ow);
+    const age = `${tm.ow} weeks ${tm.od || 0} days`;
+    const crl = tm.ow >= 6 && tm.ow < 14 && wk.mm ? `, crown-rump length about ${wk.mm} mm` : '';
     const look = v.three
         ? 'Look: 3D/4D obstetric ultrasound render, warm sepia-amber tones, soft smooth skin-like surface, dark background, realistic clinical scan'
-        : 'Look: grainy black-and-white obstetric ultrasound sonogram, fan-shaped scan sector on a dark monitor, soft speckle noise, faint scale ticks along the edge';
-    const prompt = `Medical ultrasound image at ${tm.ow} weeks of pregnancy: ${v.en}.\n${look}. Realistic and clinical. No readable text, no watermark, no people, no hands.`;
+        : v.early
+            ? 'Look: grainy black-and-white transvaginal obstetric ultrasound, a narrow fan-shaped sector opening downward from the probe apex at the top, magnified close view of the gestational sac, soft speckle noise, faint scale ticks along the edge, two small plus-sign caliper marks at the ends of what is measured'
+            : 'Look: grainy black-and-white obstetric ultrasound sonogram, fan-shaped scan sector on a dark monitor, soft speckle noise, faint scale ticks along the edge';
+    // рисовалка тянет «малыша с УЗИ» 12–20 недель — на ранних сроках прямо запрещаем
+    const guard = !v.early ? '' : tm.ow < 9
+        ? ` IMPORTANT: this is a very early pregnancy (${age}). It must NOT look like the familiar 12–20-week ultrasound baby — no profile, no face, no head-and-body silhouette, no arms, legs or hands. A real scan at this age shows a dark sac with a small bright blob in it, and that is all.`
+        : ` IMPORTANT: ${age} — not a 12-week baby yet: no detailed facial profile, the limbs are only short stubs, the head is big and round.`;
+    const prompt = `Medical ultrasound image at ${age} of pregnancy${crl}: ${v.en}.${guard}\n${look}. Realistic and clinical. No readable text, no watermark, no people, no hands.`;
     const img = await A.drawPicture(prompt, { aspect: '4:3', prefix: 'zr_us' });
     k.preg.us = [...(k.preg.us || []), { img, week: tm.ow, day: tm.od, at: c.t, three: !!v.three }];
     E.save();
@@ -648,6 +657,13 @@ export async function onClick(ev) {
             case 'comp-off': if (k.preg.comps[v]) k.preg.comps[v].stage = 'resolved'; E.save(); rerender(); return;
             case 'day': await A.withBusy(el, () => E.makeDay(k, { force: true }), ''); rerender(); return;
             case 'us-draw': await A.withBusy(el, () => drawUS(k)); zui.tab[k.id] = 'us'; rerender(); return;
+            case 'us-del': {
+                const src = el.dataset.src;
+                if (zui.usDel !== src) { zui.usDel = src; rerender(); setTimeout(() => { if (zui.usDel === src) { zui.usDel = ''; rerender(); } }, 4000); return; }
+                zui.usDel = '';
+                k.preg.us = (k.preg.us || []).filter(x => x.img !== src);
+                E.save(); rerender(); return;
+            }
             case 'pic-draw': await A.withBusy(el, () => drawPortrait(k)); rerender(); return;
             case 'main-pic': k.img = el.dataset.src; E.save(); A.closeSheet(); rerender(); return;
             case 'with': k.with = v; E.save(); rerender(); return;

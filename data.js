@@ -51,14 +51,16 @@ export function weekInfo(w) {
     return { w: k, ...WEEKS[k] };
 }
 
-/** Что реально видно на УЗИ на этом сроке — для подписи и для картинки. */
+/** Что реально видно на УЗИ на этом сроке — для подписи и для картинки.
+ *  Рисовалка по привычке рисует «малыша с УЗИ» с 12–20 недель (профиль, ручки) — на ранних сроках
+ *  описание держит размер и прямо запрещает лишнее; early — вагинальный датчик, до 11 недель. */
 export function usView(w, opts = {}) {
     const face = opts.face || '';
-    if (w < 5) return { ru: 'Пока ничего не видно — только утолщённый эндометрий.', en: 'thickened bright endometrial lining inside the uterus, no visible gestational sac yet' };
-    if (w < 6) return { ru: 'Плодное яйцо и желточный мешок, эмбриона почти не видно.', en: 'a small round dark gestational sac with a tiny bright ring (yolk sac) inside the uterus, no embryo visible yet' };
-    if (w < 7) return { ru: 'Эмбрион в несколько миллиметров рядом с желточным мешком, мерцает сердце.', en: 'a tiny bright embryo pole a few millimetres long next to a round yolk sac inside a dark gestational sac, transvaginal view' };
-    if (w < 9) return { ru: 'Изогнутый эмбрион, крупная голова, почки ручек и ножек.', en: 'a small curved C-shaped embryo with a large head and little limb buds, yolk sac nearby, inside a dark sac' };
-    if (w < 11) return { ru: 'Похож на мармеладного мишку: голова, ручки, ножки, шевелится.', en: 'a gummy-bear shaped fetus with distinct head, tiny arms and legs, floating in dark fluid' };
+    if (w < 5) return { early: true, ru: 'Пока ничего не видно — только утолщённый эндометрий.', en: 'only the uterus with a thick bright endometrial lining; NO gestational sac, NO embryo — nothing baby-like at all' };
+    if (w < 6) return { early: true, ru: 'Плодное яйцо и желточный мешок, эмбриона почти не видно.', en: 'a small round black gestational sac (about 1 cm) with a bright echogenic rim inside the uterus; inside it only a tiny bright ring — the yolk sac (3 mm); NO embryo yet, nothing baby-like' };
+    if (w < 7) return { early: true, ru: 'Эмбрион в несколько миллиметров рядом с желточным мешком, мерцает сердце.', en: 'a black gestational sac (about 1.5 cm) with a bright rim; inside it a round bright yolk sac ring (4 mm) and, touching it, a tiny straight bright speck of 4–6 mm — the embryo, featureless, with no shape of a baby at all' };
+    if (w < 9) return { early: true, ru: 'Фасолинка в сантиметр-два: изогнута, головной конец чуть толще, зачатки ручек и ножек; рядом желточный мешок.', en: 'a dark oval gestational sac (2.5–4 cm) with a bright rim; inside it a small bright bean-shaped embryo of 1–2 cm, gently curved like a peanut or a kidney bean, the head end only slightly bulkier, at most tiny stubby limb buds — NO face, NO profile, NO arms, legs or fingers; a bright round yolk sac ring floats beside it; a thin faint amnion circle around the embryo, which fills only about a third of the sac' };
+    if (w < 11) return { early: true, ru: 'Похож на мармеладного мишку: большая голова, короткие ручки и ножки, профиля ещё нет; шевелится.', en: 'a gummy-bear shaped embryo of 2.5–4 cm: a big round head almost half of the body, short stubby arms and legs, NO facial profile yet; the yolk sac still visible nearby; a thin amnion around it; dark fluid' };
     if (w < 14) return { ru: 'Чёткий профиль, носовая кость, ручки у лица.', en: 'clear side profile of a small fetus: rounded head, visible nasal bone, little arms and legs, black amniotic fluid around' };
     if (w < 18) return { ru: 'Профиль, позвоночник, ручки и ножки, может быть виден пол.', en: 'side profile of a fetus with visible spine curve, arms and legs, hand near the face' };
     if (w < 26) return { ru: 'Анатомия: лицо в профиль, позвоночник бусинками, сердце, ступни.', en: 'detailed 2D profile of a fetus: forehead, nose, lips, chin, beaded spine, a small foot or hand in view' };
