@@ -133,3 +133,9 @@
     #lf-app .zr-gene { grid-template-columns: 86px minmax(0, 1fr) 32px 32px; }
     #lf-app .zr-range small { width: 60px; }
 }
+
+/* 0.2.3: запись в карте — крестик убрать */
+#lf-app .zr-tl { align-items: flex-start; cursor: default; }
+#lf-app .zr-tl .lf-tl-txt { flex: 1; cursor: pointer; }
+#lf-app .zr-tl-del { flex: none; opacity: .55; margin-top: 2px; }
+#lf-app .zr-tl-del.warn { opacity: 1; color: var(--lf-rose); border-color: rgba(217, 104, 123, .5); }

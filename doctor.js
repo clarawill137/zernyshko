@@ -256,10 +256,31 @@ function applyComps(k, comps, { override = [] } = {}) {
     for (const c of override) if (!named.has(c.id) && k.preg.comps[c.id]) k.preg.comps[c.id].stage = 'resolved';
 }
 
+/** Сегодняшняя запись этого врача (тот же день сюжета) — один приём = одна запись в карте. */
+function todayLog(docId, kidId) {
+    const day = E.clock().day;
+    if (!day) return null;
+    return [...M().medlog].reverse().find(x => x.day === day && (x.docId || '') === (docId || '') && (!kidId || !x.kidId || x.kidId === kidId)) || null;
+}
 function addLog(entry) {
     const m = M();
-    m.medlog.push({ id: E.uid(), at: E.clock().t, day: E.clock().day, ...entry });
+    const same = todayLog(entry.docId, entry.kidId);
+    if (same) {
+        // тот же приём: дописываем в запись дня, а не плодим новые
+        const join = (a, b) => (!b || String(a || '').includes(b) ? a || '' : [a, b].filter(Boolean).join(' '));
+        same.found = join(same.found, entry.found);
+        same.said = join(same.said, entry.said);
+        same.done = [...new Set([...(same.done || []), ...(entry.done || [])])];
+        if (entry.title && !String(same.title || '').includes(entry.title)) same.title = same.title ? `${same.title} · ${entry.title}` : entry.title;
+        if (entry.next) same.next = entry.next;
+        if (same.mes == null && entry.mes != null) same.mes = entry.mes;
+        same.more = (same.more || 0) + 1;
+        return same;
+    }
+    const e = { id: E.uid(), at: E.clock().t, day: E.clock().day, ...entry };
+    m.medlog.push(e);
     if (m.medlog.length > 200) m.medlog.splice(0, m.medlog.length - 200);
+    return e;
 }
 
 /** Приём случился (по посту бота, игрока или вручную). */
@@ -360,6 +381,8 @@ export function promptDoc() {
     const out = M().visit.outcome;
     const finds = k ? diceFinds(k, ag.items) : [];
     const log = M().medlog.filter(x => x.docId === d.id).slice(-3);
+    const todayRec = k ? todayLog(d.id, k.id) : null;
+    const where = (() => { try { return A.worldState().scene?.location || ''; } catch { return ''; } })();
     const bits = [
         `ведёт ${d.name || 'врач'} — ${ROLES[d.role]}${d.title ? `; ${d.title}` : ''}${d.place ? `; принимает: ${d.place}` : ''}`,
         d.look ? `внешность: ${d.look}` : '',
@@ -374,10 +397,12 @@ export function promptDoc() {
         ag.routine ? `обычный приём: ${ag.routine}` : '',
         ag.items.length ? `сегодня по плану: ${ag.items.map(x => x.name.toLowerCase()).join(', ')}` : '',
         out ? `ИСХОД УЖЕ РЕШЁН АВТОРОМ — придерживайся его: ${out.found}${out.said ? ` Скажет примерно так: «${out.said}»` : ''}${out.next ? ` Дальше: ${out.next}.` : ''}`
+            : todayRec ? `приём сегодня уже был и записан (${[todayRec.found, todayRec.said].filter(Boolean).join(' ').slice(0, 200)}) — не начинай его заново и не меняй цифры; врач может только договорить, ответить на вопрос, проводить`
             : finds.length ? `на сегодняшних обследованиях находят: ${finds.map(c => `${c.name.toLowerCase()} (${c.signs})`).join('; ')} — сообщи это так, как сообщила бы она`
                 : ag.items.length ? 'на сегодняшних обследованиях — норма; не выдумывай новых диагнозов' : '',
     ].filter(Boolean);
-    return `[Приём у врача (Зёрнышко): ${bits.join('. ')}. Играй её живым человеком: руки, приборы, цифры на экране, её реплики — её голосом; не говори и не решай за ${E.userName() || 'игрока'}.]`;
+    const timing = `сейчас: ${where || 'место не отмечено'} — осмотр, УЗИ и результаты только когда они у неё в кабинете; пока парковка, холл или приёмная — врач максимум встречает и зовёт, не забегай вперёд`;
+    return `[Приём у врача (Зёрнышко): ${bits.join('. ')}. ${timing}. Играй её живым человеком: руки, приборы, цифры на экране, её реплики — её голосом; не говори и не решай за ${E.userName() || 'игрока'}.]`;
 }
 
 // ───────────── интерфейс ─────────────
@@ -432,6 +457,7 @@ function visitTab(d) {
     <div class="lf-hint">${esc(A.cap(ag.routine || ''))}.</div>
     ${ag.items.length ? `<div class="lf-list">${ag.items.map(x => `<div class="lf-row zr-row now">${ic('check')}<span><b>${esc(x.name)}</b><small class="lf-sub">${esc(x.note)}</small></span></div>`).join('')}</div>` : '<div class="lf-hint">Особых обследований сейчас нет — плановый осмотр.</div>'}
     ${next ? `<div class="lf-hint">${ic('calendar', 'sm')} Следующий приём: ${esc(next)}</div>` : ''}` : '<div class="lf-hint">Пациента под её роль пока нет.</div>'}
+    ${(() => { const t = k ? todayLog(d.id, k.id) : null; return t ? `<div class="lf-note">${ic('check')} Сегодня приём уже в карте: «${esc(t.title || t.done?.join(', ') || 'приём')}»${t.mes != null ? ` (#${t.mes})` : ''}. ${out ? 'Этот исход допишется в ту же запись — если приём уже сыгран, лучше «Отменить».' : 'Новый исход не нужен — разве что второй приём за день.'}</div>` : ''; })()}
     ${A.sec('Исход', out ? 'выбран' : 'на выбор')}
     ${out ? `${optCard(out, true)}<div class="lf-actions"><button class="lf-btn" data-zact="doc-done" data-id="${esc(d.id)}">${ic('check')} Уже было — в карту</button><button class="lf-btn ghost" data-zact="doc-unpick" data-id="${esc(d.id)}">${ic('x')} Отменить</button></div>
         <div class="lf-hint">Исход уходит модели, пока идёт приём. Как только в посте прозвучит врач — запишется в карту сам.</div>`
@@ -454,7 +480,9 @@ function optCard(o, chosen = false) {
 function cardTab(d) {
     const list = [...M().medlog].filter(x => x.docId === d.id || !x.docId).reverse().slice(0, 60);
     if (!list.length) return '<div class="lf-empty small">Карта пустая. Приёмы запишутся сами — из постов бота, из твоих и из выбранных исходов.</div>';
-    return `<div class="lf-timeline">${list.map(x => `<${x.mes != null ? `button data-act="jump" data-mes="${x.mes}"` : 'div'} class="lf-tl"><span class="lf-tl-dot${x.src === 'user' ? ' on' : ''}"></span><span class="lf-tl-txt"><b>${esc(x.title || x.done?.join(', ') || 'Приём')}</b>${x.found ? `<span class="zr-tl-p">${esc(x.found)}</span>` : ''}${x.said ? `<span class="zr-tl-p zr-it">«${esc(x.said)}»</span>` : ''}<small>${esc(E.fmtDate(x.at))} · ${esc(x.stamp || '')} · ${esc(SRC[x.src] || '')}${x.next ? ` · дальше: ${esc(x.next)}` : ''}${x.mes != null ? ` · #${x.mes}` : ''}</small></span></${x.mes != null ? 'button' : 'div'}>`).join('')}</div>`;
+    return `<div class="lf-timeline">${list.map(x => `<div class="lf-tl zr-tl"><span class="lf-tl-dot${x.src === 'user' ? ' on' : ''}"></span><span class="lf-tl-txt"${x.mes != null ? ` data-act="jump" data-mes="${x.mes}"` : ''}><b>${esc(x.title || x.done?.join(', ') || 'Приём')}</b>${x.found ? `<span class="zr-tl-p">${esc(x.found)}</span>` : ''}${x.said ? `<span class="zr-tl-p zr-it">«${esc(x.said)}»</span>` : ''}<small>${esc(E.fmtDate(x.at))} · ${esc(x.stamp || '')} · ${esc(SRC[x.src] || '')}${x.next ? ` · дальше: ${esc(x.next)}` : ''}${x.mes != null ? ` · #${x.mes}` : ''}</small></span>
+        <button class="lf-iconbtn sm zr-tl-del${dui.logDel === x.id ? ' warn' : ''}" data-zact="log-del" data-id="${esc(d.id)}" data-v="${esc(x.id)}" title="${dui.logDel === x.id ? 'Точно убрать? Тапни ещё раз' : 'Убрать запись'}">${ic(dui.logDel === x.id ? 'trash' : 'x')}</button></div>`).join('')}</div>
+    <div class="lf-hint">Один день сюжета — одна запись: всё, что врач скажет за этот приём, допишется в неё. Лишнюю убери крестиком (тап дважды).</div>`;
 }
 
 function fileTab(d) {
@@ -515,6 +543,9 @@ export async function onDocClick(act, el, box, helpers) {
         case 'doc-opts': await A.withBusy(el, () => makeOptions(d, kidFor(d)), 'Думаю…'); rerender(); return true;
         case 'doc-pick': pickOption(v); rerender(); A.toast('info', 'Исход уйдёт модели на приёме', '✦ Зёрнышко', { timeOut: 2200 }); return true;
         case 'doc-unpick': M().visit.outcome = null; E.save(); rerender(); return true;
+        case 'log-del':
+            if (dui.logDel !== v) { dui.logDel = v; rerender(); return true; }
+            M().medlog = M().medlog.filter(x => x.id !== v); dui.logDel = ''; E.save(); rerender(); return true;
         case 'doc-custom': { const t = val(box || el.closest('.zr'), 'custom'); if (!t) { A.toast('warning', 'Напиши, что будет'); return true; } customOutcome(t, d, kidFor(d)); rerender(); return true; }
         case 'doc-done': { const notes = visitHappened({ src: 'manual' }); if (notes.length) A.toast('info', A.esc(notes.join(' · ')), '✦ Зёрнышко'); dui.tab[d.id] = 'card'; rerender(); return true; }
     }
