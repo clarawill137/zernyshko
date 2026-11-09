@@ -5,6 +5,7 @@ import * as E from './engine.js';
 import { A } from './engine.js';
 import { weekInfo, usView, movesNow, PLAN, VACCINES, MILESTONES, DOMAIN, ILLNESSES, sleepNorm, feedWord, pct, visitEvery } from './data.js';
 import * as D from './doctor.js';
+import { bookTab, bookAdd, bookDel } from './book.js';
 import { ROWS, GROUPS, EYES, HAIR, TEXTURE, SKIN, BUILD, TEMP, TALENTS, POWER_KINDS, POWER_FAMILIES, SERUM, STONES, IQ_TIER, tempType, rollRow, rollAll, ANALYZE_SYSTEM, analyzeInput, normalizeProfile, lookEn, faceEn, isHedyBucky, loreFixed } from './genes.js';
 
 const esc = (v) => A.esc(v);
@@ -76,8 +77,8 @@ export function renderKid(id) {
     try { E.tick(); } catch (e) { console.warn('[Зёрнышко]', e); }
     const c = E.clock();
     const preg = k.stage === 'preg';
-    const tabs = preg ? [['now', 'Сейчас'], ['plan', 'План'], ['genes', 'Гены'], ['us', 'УЗИ'], ['bond', 'Связь']]
-        : [['now', 'Сейчас'], ['health', 'Здоровье'], ['grow', 'Развитие'], ['genes', 'Гены'], ['bond', 'Связь'], ['album', 'Альбом']];
+    const tabs = preg ? [['now', 'Сейчас'], ['plan', 'План'], ['genes', 'Гены'], ['us', 'УЗИ'], ['bond', 'Связь'], ['book', 'Книга']]
+        : [['now', 'Сейчас'], ['health', 'Здоровье'], ['grow', 'Развитие'], ['genes', 'Гены'], ['bond', 'Связь'], ['album', 'Альбом'], ['book', 'Книга']];
     let tab = zui.tab[k.id] || 'now';
     if (!tabs.some(([t]) => t === tab)) tab = 'now';
     const img = heroImg(k);
@@ -90,7 +91,7 @@ export function renderKid(id) {
         <div class="lf-pethero-t"><h2>${esc(E.kidName(k))}</h2><span>${esc(sub)}</span></div></section>`;
     const body = {
         now: () => (preg ? pregNow(k, c) : babyNow(k, c)), plan: () => pregPlan(k, c), genes: () => genesTab(k), us: () => usTab(k, c),
-        bond: () => (preg ? pregBond(k) : babyBond(k, c)), health: () => healthTab(k, c), grow: () => growTab(k, c), album: () => albumTab(k),
+        bond: () => (preg ? pregBond(k) : babyBond(k, c)), health: () => healthTab(k, c), grow: () => growTab(k, c), album: () => albumTab(k), book: () => bookTab(k),
     }[tab]?.() || '';
     return `<div class="zr">${hero}${seg(tabs, tab, 'tab', ` data-id="${esc(k.id)}"`)}${body}</div>`;
 }
@@ -625,6 +626,8 @@ export async function onClick(ev) {
             case 'open': A.ui.who = `zr:${el.dataset.id}`; A.ui.tab = 'person'; A.closeSheet(); if (!A.ui.open) A.openHub('person'); else A.render(); return;
             case 'new': A.closeSheet(); setTimeout(newKidSheet, 230); return;
             case 'tab': zui.tab[el.dataset.id] = v; A.render(); return;
+            case 'book-add': { const t = el.closest('.zr-book')?.querySelector('[data-zin="book-text"]')?.value || ''; if (k && bookAdd(k, { text: t })) rerender(); return; }
+            case 'book-del': if (k) { bookDel(k, v); rerender(); } return;
             case 'chip': {
                 const grp = el.closest('[data-zgrp]');
                 if (grp?.dataset.multi) el.classList.toggle('on');
@@ -776,6 +779,7 @@ export function onChange(ev) {
             const path = await A.uploadImage(await A.fileToJpeg(el.files[0], 1400), `zr_${kind}`);
             const c = E.clock();
             if (kind === 'us') { const tm = E.term(k, c.t); const x = { img: path, week: tm?.ow || 0, day: tm?.od ?? null, at: c.t, own: true }; k.preg.us = [...(k.preg.us || []), x]; setTimeout(() => E.describeUS(k, x).then(usSeen), 300); }
+            else if (kind === 'book') { bookAdd(k, { text: el.closest('.zr-book')?.querySelector('[data-zin="book-text"]')?.value || '', img: path }); }
             else { const ag = E.age(k, c.t); k.album = [...(k.album || []), { img: path, label: ag?.label || '', at: c.t, own: true }]; k.img = path; }
             E.save(); A.render();
         }, 'Загружаю…');
